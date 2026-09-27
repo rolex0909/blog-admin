@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Редактор блогу — Укрвуглепоставка</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#0A0A0A;--bg2:#111;--bg3:#161616;--bg4:#1c1c1c;
+  --line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.14);
+  --text:#E8E8E8;--muted:#888;--muted2:#aaa;
+  --accent:#F5C400;--accent2:#FFD740;
+  --white:#fff;--r:6px;--danger:#e0554f;--ok:#4ade80;
+}
+:root:not([data-theme="light"]){color-scheme:dark}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);
+  line-height:1.5;min-height:100%;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+a{color:inherit}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--line2);border-radius:4px}
+
+/* ===== TOPBAR ===== */
+.topbar{
+  position:sticky;top:env(safe-area-inset-top,0px);z-index:50;
+  background:rgba(10,10,10,.92);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);
+  padding:.7rem 1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;
+}
+.tb-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;letter-spacing:.02em;white-space:nowrap}
+.tb-logo b{color:var(--accent)}
+.tb-logo span{color:var(--muted);font-weight:600;font-size:.78rem;margin-left:.4rem}
+.tb-spacer{flex:1}
+.seg{display:flex;border:1px solid var(--line2);border-radius:100px;padding:2px;gap:2px}
+.seg button{
+  border:none;background:transparent;color:var(--muted2);font-family:inherit;font-size:.74rem;font-weight:700;
+  letter-spacing:.04em;padding:.4rem .85rem;border-radius:100px;cursor:pointer;transition:.15s;
+}
+.seg button.active{background:var(--accent);color:#000}
+.tb-btn{
+  border:1px solid var(--line2);background:var(--bg3);color:var(--text);font-family:inherit;font-size:.78rem;
+  font-weight:600;padding:.5rem .95rem;border-radius:var(--r);cursor:pointer;transition:.15s;display:inline-flex;
+  align-items:center;gap:.4rem;white-space:nowrap;
+}
+.tb-btn:hover{border-color:var(--line2);background:var(--bg4)}
+.tb-btn.primary{background:var(--accent);color:#000;border-color:var(--accent)}
+.tb-btn.primary:hover{background:var(--accent2)}
+.tb-btn:disabled{opacity:.4;cursor:not-allowed}
+.tb-status{font-size:.72rem;color:var(--muted);min-width:110px}
+.tb-status.ok{color:var(--ok)}
+.tb-status.err{color:var(--danger)}
+
+/* ===== LAYOUT ===== */
+.wrap{display:grid;grid-template-columns:minmax(360px,480px) 1fr;min-height:calc(100vh - 54px)}
+@media(max-width:980px){.wrap{grid-template-columns:1fr}}
+.editor-pane{border-right:1px solid var(--line);padding:1.5rem;overflow-y:auto;max-height:calc(100vh - 54px)}
+@media(max-width:980px){.editor-pane{max-height:none;border-right:none;border-bottom:1px solid var(--line)}}
+.preview-pane{background:#050505;padding:1.5rem;overflow-y:auto;max-height:calc(100vh - 54px)}
+@media(max-width:980px){.preview-pane{max-height:none}}
+
+/* ===== FORM ===== */
+.field{margin-bottom:1.1rem}
+.field label{
+  display:block;font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:.4rem;
+}
+.field .hint{font-size:.72rem;color:var(--muted);margin-top:.35rem;line-height:1.5}
+input[type=text],input[type=url],input[type=number],input[type=date],textarea,select{
+  width:100%;font-family:'Inter',sans-serif;font-size:.88rem;color:var(--white);background:var(--bg3);
+  border:1px solid var(--line2);border-radius:var(--r);padding:.65rem .85rem;outline:none;
+  transition:border-color .15s;resize:vertical;
+}
+input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+select{cursor:pointer}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.row3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:.75rem}
+.check-row{display:flex;align-items:center;gap:.55rem;font-size:.82rem;color:var(--muted2);cursor:pointer}
+.check-row input{width:auto}
+
+.section-title{
+  font-family:'Syne',sans-serif;font-size:.9rem;font-weight:700;color:var(--white);
+  margin:1.75rem 0 .9rem;padding-top:1.25rem;border-top:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.section-title:first-child{margin-top:0;padding-top:0;border-top:none}
+
+/* body editor */
+.toolbar{display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.5rem;background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r) var(--r) 0 0;padding:.4rem;border-bottom:none}
+.tbtn{
+  border:none;background:transparent;color:var(--muted2);font-family:inherit;font-size:.72rem;font-weight:600;
+  padding:.4rem .55rem;border-radius:4px;cursor:pointer;transition:.15s;
+}
+.tbtn:hover{background:var(--bg4);color:var(--white)}
+#bodyMd{
+  border-radius:0 0 var(--r) var(--r);font-family:'JetBrains Mono',monospace;font-size:.82rem;line-height:1.7;
+  min-height:340px;white-space:pre;
+}
+.md-help{font-size:.7rem;color:var(--muted);margin-top:.5rem;line-height:1.9;background:var(--bg3);border:1px solid var(--line);border-radius:var(--r);padding:.7rem .9rem}
+.md-help code{color:var(--accent);font-family:'JetBrains Mono',monospace}
+
+/* FAQ builder */
+.faq-row{background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:.85rem;margin-bottom:.6rem}
+.faq-row-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem}
+.faq-row-top span{font-size:.68rem;font-weight:700;color:var(--muted);letter-spacing:.05em}
+.faq-del{border:none;background:transparent;color:var(--danger);cursor:pointer;font-size:.75rem;font-weight:600}
+.faq-row input,.faq-row textarea{margin-bottom:.5rem}
+.faq-row textarea{min-height:60px}
+.add-btn{
+  width:100%;border:1px dashed var(--line2);background:transparent;color:var(--muted2);font-family:inherit;
+  font-size:.82rem;font-weight:600;padding:.65rem;border-radius:var(--r);cursor:pointer;transition:.15s;
+}
+.add-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* preview frame */
+.preview-frame-wrap{
+  max-width:900px;margin:0 auto;background:#0A0A0A;border:1px solid var(--line2);border-radius:12px;
+  overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5);
+}
+.preview-frame-bar{background:#161616;padding:.5rem .9rem;display:flex;align-items:center;gap:.4rem;border-bottom:1px solid var(--line)}
+.preview-frame-bar span{width:9px;height:9px;border-radius:50%;background:#333}
+.preview-frame-url{flex:1;text-align:center;font-size:.68rem;color:var(--muted);font-family:'JetBrains Mono',monospace}
+iframe{width:100%;height:calc(100vh - 160px);border:none;display:block;background:#0A0A0A}
+
+/* drafts modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:none;align-items:flex-start;justify-content:center;padding:5vh 1.5rem;overflow-y:auto}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--line2);border-radius:12px;max-width:640px;width:100%;padding:1.5rem}
+.modal h2{font-family:'Syne',sans-serif;font-size:1.15rem;margin-bottom:1rem}
+.draft-item{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.8rem;border:1px solid var(--line);border-radius:var(--r);margin-bottom:.5rem}
+.draft-item-info{flex:1;min-width:0}
+.draft-item-title{font-size:.86rem;font-weight:600;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.draft-item-meta{font-size:.72rem;color:var(--muted);margin-top:.15rem}
+.draft-item-actions{display:flex;gap:.4rem;flex-shrink:0}
+.draft-item-actions button{border:1px solid var(--line2);background:var(--bg3);color:var(--text);font-family:inherit;font-size:.72rem;padding:.4rem .7rem;border-radius:4px;cursor:pointer}
+.draft-item-actions button.del{color:var(--danger);border-color:rgba(224,85,79,.3)}
+.modal-close{float:right;border:none;background:transparent;color:var(--muted);font-size:1.3rem;cursor:pointer;line-height:1}
+.empty-note{color:var(--muted);font-size:.85rem;padding:1.5rem 0;text-align:center}
+
+.cap-warning{background:rgba(224,85,79,.1);border:1px solid rgba(224,85,79,.3);border-radius:var(--r);padding:.85rem 1rem;font-size:.8rem;color:#f0908c;margin-bottom:1.25rem;line-height:1.6}
+.cap-warning strong{color:var(--white)}
+
+.img-progress{font-size:.72rem;color:var(--accent);margin-top:.4rem}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="tb-logo"><b>УКР</b>ВУГЛЕПОСТАВКА <span>Редактор блогу</span></div>
+  <div class="seg" id="langSeg">
+    <button data-lang="uk" class="active">UA</button>
+    <button data-lang="ru">RU</button>
+  </div>
+  <div class="tb-spacer"></div>
+  <span class="tb-status" id="statusText">Готово до роботи</span>
+  <button class="tb-btn" id="draftsBtn">Мої статті</button>
+  <button class="tb-btn" id="newBtn">Нова стаття</button>
+  <button class="tb-btn" id="saveBtn">Зберегти чернетку</button>
+  <button class="tb-btn primary" id="exportBtn">Завантажити HTML</button>
+</div>
+
+<div class="wrap">
+  <div class="editor-pane">
+
+    <div id="capWarning" class="cap-warning" style="display:block;background:rgba(245,196,0,.08);border-color:rgba(245,196,0,.3);color:var(--muted2)">
+      <strong>Локальний інструмент:</strong> чернетки зберігаються у пам'яті цього браузера (localStorage) — вони не спільні між людьми і зникнуть, якщо очистити дані сайту. Зображення вбудовуються прямо у файл при завантаженні.
+    </div>
+
+    <div class="section-title">Основне</div>
+    <div class="field">
+      <label>Категорія</label>
+      <select id="fCategory">
+        <option value="Перевезення">Перевезення / Перевозки</option>
+        <option value="Вугілля">Вугілля / Уголь</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Заголовок статті (H1)</label>
+      <input type="text" id="fH1" placeholder="Наприклад: Скільки коштує перевезти тонну вугілля">
+    </div>
+    <div class="field">
+      <label>URL-слаг (латиницею, без пробілів)</label>
+      <input type="text" id="fSlug" placeholder="skilky-koshtuye-perevezty-tonnu-vugillya">
+      <div class="hint">Сторінка буде за адресою /blog/<span id="slugPreview">...</span>/ — це визначає, в яку папку заливати файл.</div>
+    </div>
+    <label class="check-row">
+      <input type="checkbox" id="fBilingual">
+      Двомовна стаття (є версія і UA, і RU з тим самим слагом)
+    </label>
+
+    <div class="section-title">SEO та превʼю</div>
+    <div class="field">
+      <label>Title (для &lt;title&gt;)</label>
+      <input type="text" id="fTitle" placeholder="До 60 символів + | Укрвуглепоставка">
+    </div>
+    <div class="field">
+      <label>Meta description</label>
+      <textarea id="fDescription" rows="2" placeholder="140–160 символів, з сутністю статті"></textarea>
+    </div>
+    <div class="field">
+      <label>Вступний абзац (лід)</label>
+      <textarea id="fLead" rows="2" placeholder="2–3 речення під заголовком — що дізнається читач"></textarea>
+    </div>
+    <div class="row3">
+      <div class="field">
+        <label>Дата публікації</label>
+        <input type="date" id="fDate">
+      </div>
+      <div class="field">
+        <label>Читання, хв</label>
+        <input type="number" id="fReadTime" value="5" min="1" max="30">
+      </div>
+      <div class="field">
+        <label>Автор</label>
+        <input type="text" id="fAuthor" value="Укрвуглепоставка">
+      </div>
+    </div>
+
+    <div class="section-title">Текст статті</div>
+    <div class="toolbar">
+      <button class="tbtn" data-ins="h2">H2</button>
+      <button class="tbtn" data-ins="h3">H3</button>
+      <button class="tbtn" data-ins="bold">Жирний</button>
+      <button class="tbtn" data-ins="link">Лінк</button>
+      <button class="tbtn" data-ins="ul">Список</button>
+      <button class="tbtn" data-ins="ol">Нумерований</button>
+      <button class="tbtn" data-ins="table">Таблиця</button>
+      <button class="tbtn" data-ins="note">Примітка</button>
+      <button class="tbtn" data-ins="formula">Формула</button>
+      <button class="tbtn" id="imgBtn">🖼 Зображення</button>
+      <input type="file" id="imgInput" accept="image/*" style="display:none">
+    </div>
+    <textarea id="bodyMd" rows="18" placeholder="## Перший підзаголовок
+
+Звичайний текст абзацу. Можна робити **жирний текст** і [посилання](/vugillya/).
+
+- пункт списку
+- ще один пункт"></textarea>
+    <div id="imgProgress" class="img-progress" style="display:none">Завантаження зображення…</div>
+    <div class="md-help">
+      <code>## текст</code> — заголовок H2 · <code>### текст</code> — H3 · <code>**текст**</code> — жирний · <code>[текст](url)</code> — лінк · <code>- текст</code> — маркований список · <code>1. текст</code> — нумерований · <code>&gt; текст</code> — примітка · рядки з <code>|</code> — таблиця (другий рядок <code>|---|---|</code>, лишіть першу клітинку заголовка порожньою <code>| | Г | ГЖП |</code>, якщо перша колонка — це просто назви рядків)
+    </div>
+
+    <div class="section-title">Заклик до дії в тексті</div>
+    <div class="field">
+      <label>Текст (можна **жирний**)</label>
+      <textarea id="fCalloutText" rows="2" placeholder="Потрібне перевезення? Розрахуємо вартість **протягом дня**."></textarea>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Посилання кнопки</label>
+        <input type="text" id="fCalloutLink" placeholder="/perevezennya/">
+      </div>
+      <div class="field">
+        <label>Текст кнопки</label>
+        <input type="text" id="fCalloutBtn" placeholder="Детальніше →">
+      </div>
+    </div>
+
+    <div class="section-title">
+      FAQ
+      <span style="font-size:.68rem;color:var(--muted);font-weight:500;text-transform:none;letter-spacing:0">Ідуть у блок питань і в Schema.org</span>
+    </div>
+    <div id="faqList"></div>
+    <button class="add-btn" id="addFaqBtn">+ Додати питання</button>
+
+  </div>
+
+  <div class="preview-pane">
+    <div class="preview-frame-wrap">
+      <div class="preview-frame-bar">
+        <span></span><span></span><span></span>
+        <div class="preview-frame-url" id="previewUrl">ukrcoal.net/blog/…</div>
+      </div>
+      <iframe id="previewFrame"></iframe>
+    </div>
+  </div>
+</div>
+
+<!-- DRAFTS MODAL -->
+<div class="modal-overlay" id="draftsModal">
+  <div class="modal">
+    <button class="modal-close" id="closeDraftsBtn">×</button>
+    <h2>Мої статті</h2>
+    <div id="draftsListEl"><div class="empty-note">Завантаження…</div></div>
+  </div>
+</div>
+
+<script>
+(function(){
+
+const CATEGORY_LABELS = {
+  Перевезення: {uk:'Перевезення', ru:'Перевозки'},
+  Вугілля: {uk:'Вугілля', ru:'Уголь'}
+};
+const MONTHS_UK = ['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня'];
+const MONTHS_RU = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+
+let capsReady=false;
+const LS_KEY = 'ukrcoal_blog_drafts_v1';
+
+let state = freshState('uk');
+state.images = {}; // id -> base64 data URL, local to this draft only
+
+function freshState(lang){
+  const today = new Date().toISOString().slice(0,10);
+  return {
+    lang, slug:'', category:'Перевезення', h1:'', title:'', description:'', lead:'',
+    dateISO: today, readTime: 5, author:'Укрвуглепоставка',
+    calloutText:'', calloutLink:'', calloutBtn:'',
+    body:'', faqs:[], bilingual:false, images:{}
+  };
+}
+
+// ===================== LOCAL STORAGE HELPERS =====================
+function loadAllDrafts(){
+  try{ return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); }
+  catch(e){ return {}; }
+}
+function saveAllDrafts(all){
+  localStorage.setItem(LS_KEY, JSON.stringify(all));
+}
+
+// ===================== INIT (no external capabilities needed) =====================
+async function initCaps(){
+  capsReady = true;
+  document.getElementById('saveBtn').disabled = false;
+  document.getElementById('draftsBtn').disabled = false;
+  document.getElementById('exportBtn').disabled = false;
+  document.getElementById('imgBtn').style.display = '';
+}
+
+// ===================== SLUG =====================
+function slugify(s){
+  const map = {а:'a',б:'b',в:'v',г:'h',ґ:'g',д:'d',е:'e',є:'ie',ж:'zh',з:'z',и:'y',і:'i',ї:'i',й:'i',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'kh',ц:'ts',ч:'ch',ш:'sh',щ:'shch',ь:'',ю:'iu',я:'ia',ъ:'',ы:'y',э:'e'};
+  return s.toLowerCase().split('').map(ch=>map[ch]!==undefined?map[ch]:ch).join('')
+    .replace(/[^a-z0-9\s-]/g,'').trim().replace(/\s+/g,'-').replace(/-+/g,'-');
+}
+
+// ===================== MARKDOWN -> HTML =====================
+function escapeHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function inlineMd(s){
+  s = escapeHtml(s);
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a class="inline-link" href="$2">$1</a>');
+  return s;
+}
+function imgSrc(token, resolver){
+  // token like "img:localid" or a plain url
+  if(token.startsWith('img:')){
+    const id = token.slice(4);
+    return resolver ? resolver(id) : (state.images[id] || '');
+  }
+  return token;
+}
+function mdToHtml(md, imgResolver){
+  const lines = md.replace(/\r\n/g,'\n').split('\n');
+  let html = '';
+  let i = 0;
+  let para = [];
+  function flushPara(){
+    if(para.length){
+      html += '<p>'+inlineMd(para.join(' '))+'</p>\n';
+      para = [];
+    }
+  }
+  while(i < lines.length){
+    let line = lines[i];
+
+    if(line.trim() === ''){ flushPara(); i++; continue; }
+
+    // image ![alt](src)
+    let imgMatch = line.match(/^!\[([^\]]*)\]\(([^)]+)\)\s*$/);
+    if(imgMatch){
+      flushPara();
+      const alt = escapeHtml(imgMatch[1]);
+      const src = imgSrc(imgMatch[2], imgResolver);
+      html += '<img src="'+src+'" alt="'+alt+'" loading="lazy">\n';
+      if(imgMatch[1]) html += '<p style="font-size:.8rem;color:var(--muted);text-align:center;margin-top:-.75rem">'+alt+'</p>\n';
+      i++; continue;
+    }
+
+    if(line.startsWith('## ')){ flushPara(); html += '<h2>'+inlineMd(line.slice(3))+'</h2>\n'; i++; continue; }
+    if(line.startsWith('### ')){ flushPara(); html += '<h3>'+inlineMd(line.slice(4))+'</h3>\n'; i++; continue; }
+
+    if(line.startsWith('> ')){
+      flushPara();
+      let noteLines = [];
+      while(i < lines.length && lines[i].startsWith('> ')){ noteLines.push(lines[i].slice(2)); i++; }
+      html += '<div class="note-inline">'+inlineMd(noteLines.join(' '))+'</div>\n';
+      continue;
+    }
+
+    if(line.startsWith('%%')){
+      flushPara();
+      const parts = line.slice(2).split('|');
+      const main = (parts[0]||'').trim();
+      const small = (parts[1]||'').trim();
+      html += '<div class="formula-box">'+escapeHtml(main)+(small?'<small>'+escapeHtml(small)+'</small>':'')+'</div>\n';
+      i++; continue;
+    }
+
+    if(/^-\s+/.test(line)){
+      flushPara();
+      let items = [];
+      while(i < lines.length && /^-\s+/.test(lines[i])){ items.push(lines[i].replace(/^-\s+/,'')); i++; }
+      html += '<ul>' + items.map(it=>'<li>'+inlineMd(it)+'</li>').join('') + '</ul>\n';
+      continue;
+    }
+
+    if(/^\d+\.\s+/.test(line)){
+      flushPara();
+      let items = [];
+      while(i < lines.length && /^\d+\.\s+/.test(lines[i])){ items.push(lines[i].replace(/^\d+\.\s+/,'')); i++; }
+      html += '<ol>' + items.map(it=>'<li>'+inlineMd(it)+'</li>').join('') + '</ol>\n';
+      continue;
+    }
+
+    if(line.trim().startsWith('|')){
+      flushPara();
+      let rows = [];
+      while(i < lines.length && lines[i].trim().startsWith('|')){
+        rows.push(lines[i].trim());
+        i++;
+      }
+      if(rows.length >= 2){
+        const headCells = rows[0].split('|').slice(1,-1).map(c=>c.trim());
+        const bodyRows = rows.slice(2).map(r=>r.split('|').slice(1,-1).map(c=>c.trim()));
+        html += '<div class="art-table-wrap"><table class="art-table"><thead><tr>';
+        headCells.forEach(c=>{ html += '<th>'+inlineMd(c)+'</th>'; });
+        html += '</tr></thead><tbody>';
+        bodyRows.forEach(r=>{
+          html += '<tr>';
+          r.forEach((c,idx)=>{ html += idx===0 ? '<th>'+inlineMd(c)+'</th>' : '<td>'+inlineMd(c)+'</td>'; });
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>\n';
+      }
+      continue;
+    }
+
+    para.push(line);
+    i++;
+  }
+  flushPara();
+  return html;
+}
+
+// ===================== FULL DOCUMENT TEMPLATE =====================
+const ARTICLE_CSS = `
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;font-size:16px}
+:root{--bg:#0A0A0A;--bg2:#111;--bg3:#161616;--line:rgba(255,255,255,.07);--line2:rgba(255,255,255,.12);--text:#E8E8E8;--muted:#888;--muted2:#aaa;--accent:#F5C400;--accent2:#FFD740;--white:#fff;--r:6px}
+a{color:inherit;text-decoration:none}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden;line-height:1.6}
+::selection{background:var(--accent);color:#000}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:.85rem 0;background:rgba(10,10,10,.9);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}
+.nav-wrap{max-width:900px;margin:0 auto;padding:0 2rem;display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.nav-logo{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;letter-spacing:.04em;text-decoration:none;color:var(--white)}
+.nav-logo b{color:var(--accent)}
+.nav-back{font-size:.78rem;font-weight:500;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;color:var(--muted2);padding:.45rem .9rem;border-radius:var(--r)}
+.nav-cta{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;background:var(--accent);color:#000;padding:.5rem 1rem;border-radius:var(--r)}
+.lang-switch{display:flex;align-items:center;gap:2px;flex-shrink:0}
+.lang-switch a{font-size:.68rem;font-weight:700;letter-spacing:.04em;text-decoration:none;color:var(--muted);padding:.3rem .5rem;border-radius:4px}
+.lang-switch a.active{color:var(--accent);background:rgba(245,196,0,.1)}
+.lang-switch span{color:var(--line2)}
+.container{max-width:900px;margin:0 auto;padding:0 2rem}
+.page-hero{padding:9rem 0 3rem;background:radial-gradient(ellipse 70% 60% at 20% 0%, rgba(26,95,255,.14), transparent 60%),radial-gradient(ellipse 60% 50% at 100% 0%, rgba(245,196,0,.08), transparent 60%),var(--bg)}
+.breadcrumb{font-size:.72rem;color:var(--muted);margin-bottom:1.25rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.breadcrumb a{color:var(--muted);text-decoration:none}
+.article-badge{display:inline-block;font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#000;background:var(--accent);padding:.3rem .8rem;border-radius:4px;margin-bottom:1rem}
+.article-title{font-family:'Syne',sans-serif;font-size:clamp(1.8rem,4.5vw,2.6rem);font-weight:800;line-height:1.2;color:var(--white);margin-bottom:1rem}
+.article-lead{font-size:1.05rem;color:var(--muted2);line-height:1.75;max-width:720px}
+.article-meta{display:flex;gap:1.25rem;margin-top:1.5rem;font-size:.78rem;color:var(--muted);flex-wrap:wrap}
+.section{padding:3rem 0}
+.article-body h2{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:700;color:var(--white);margin:2.5rem 0 1rem}
+.article-body h3{font-family:'Syne',sans-serif;font-size:1.15rem;font-weight:700;color:var(--white);margin:1.75rem 0 .75rem}
+.article-body p{font-size:.98rem;color:var(--muted2);line-height:1.85;margin-bottom:1.1rem}
+.article-body p strong,.article-body li strong{color:var(--white);font-weight:600}
+.article-body ul,.article-body ol{margin:0 0 1.25rem 1.25rem;color:var(--muted2)}
+.article-body li{font-size:.96rem;line-height:1.8;margin-bottom:.5rem;padding-left:.25rem}
+.article-body a.inline-link{color:var(--accent);font-weight:600}
+.article-body img{width:100%;border-radius:10px;margin:1.5rem 0;display:block}
+.art-table-wrap{overflow-x:auto;margin:1.5rem 0;border:1px solid var(--line);border-radius:10px}
+table.art-table{width:100%;border-collapse:collapse;min-width:480px}
+table.art-table th,table.art-table td{padding:.85rem 1.1rem;text-align:left;font-size:.85rem;border-bottom:1px solid var(--line)}
+table.art-table thead th{background:var(--bg3);color:var(--muted);font-size:.66rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+table.art-table tbody th{color:var(--white);font-weight:600;background:var(--bg2);white-space:nowrap}
+table.art-table td{color:var(--muted2)}
+table.art-table tbody tr:last-child td,table.art-table tbody tr:last-child th{border-bottom:none}
+.callout{background:var(--bg2);border:1px solid rgba(245,196,0,.25);border-radius:12px;padding:1.75rem;margin:2rem 0;display:flex;align-items:center;justify-content:space-between;gap:1.5rem;flex-wrap:wrap}
+.callout-text{font-size:.92rem;color:var(--text)}
+.callout-text strong{color:var(--accent)}
+.callout-btn{font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;background:var(--accent);color:#000;padding:.7rem 1.4rem;border-radius:var(--r);white-space:nowrap}
+.faq-section{background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-top:2rem}
+.faq-list{display:flex;flex-direction:column;gap:.65rem;margin-top:1.5rem}
+.faq-item{border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.faq-item.open{border-color:rgba(245,196,0,.3)}
+.faq-q{padding:1.1rem 1.35rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;cursor:pointer;font-size:.9rem;font-weight:600;color:var(--white);background:var(--bg3)}
+.faq-arrow{font-size:1.3rem;color:var(--accent);flex-shrink:0;transition:transform .3s;line-height:1}
+.faq-item.open .faq-arrow{transform:rotate(45deg)}
+.faq-a{display:none;padding:1.1rem 1.35rem;font-size:.85rem;color:var(--muted2);line-height:1.7;background:var(--bg2);border-top:1px solid var(--line)}
+.faq-a strong{color:var(--white)}
+.cta-final{padding:3rem 0;text-align:center}
+.cta-final h2{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:700;color:var(--white);margin-bottom:.5rem}
+.cta-final p{color:var(--muted2);margin-bottom:1.5rem}
+.cta-btn-lg{display:inline-block;font-size:.85rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;background:var(--accent);color:#000;padding:1rem 2.2rem;border-radius:var(--r)}
+.back-to-blog{display:inline-block;margin-top:2rem;font-size:.8rem;color:var(--muted2);font-weight:600}
+footer{background:var(--bg2);border-top:1px solid var(--line);padding:2rem 0}
+.footer-inner{max-width:900px;margin:0 auto;padding:0 2rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.footer-copy{font-size:.75rem;color:var(--muted)}
+.footer-flag{display:flex;gap:3px}
+.footer-flag span{width:20px;height:13px;border-radius:2px}
+.flag-b{background:#005BBB}
+.flag-y{background:#FFD500}
+.formula-box{background:var(--bg2);border:1px solid rgba(245,196,0,.25);border-radius:10px;padding:1.25rem 1.5rem;margin:1.25rem 0;font-family:'Syne',sans-serif;font-size:1.02rem;font-weight:700;color:var(--accent);text-align:center}
+.formula-box small{display:block;font-family:'Inter',sans-serif;font-size:.75rem;font-weight:400;color:var(--muted2);margin-top:.5rem}
+.note-inline{background:var(--bg2);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;padding:.9rem 1.25rem;margin:1.25rem 0;font-size:.88rem;color:var(--muted2)}
+@media(max-width:640px){.callout{flex-direction:column;align-items:flex-start;text-align:left}}
+`;
+
+function dateDisplay(iso, lang){
+  const d = new Date(iso+'T00:00:00');
+  const months = lang==='ru' ? MONTHS_RU : MONTHS_UK;
+  return d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+}
+
+function faqSchema(faqs){
+  return faqs.map(f=>'    {"@type":"Question","name":"'+jsonEsc(f.q)+'","acceptedAnswer":{"@type":"Answer","text":"'+jsonEsc(stripHtml(f.a))+'"}}').join(',\n');
+}
+function jsonEsc(s){ return (s||'').replace(/\\/g,'\\\\').replace(/"/g,'\\"'); }
+function stripHtml(s){ return (s||'').replace(/<[^>]+>/g,''); }
+
+function buildDocument(st, imgResolver){
+  const lang = st.lang;
+  const isRu = lang==='ru';
+  const home = isRu ? '/ru/' : '/';
+  const blogPath = isRu ? '/ru/blog/' : '/blog/';
+  const domain = 'https://ukrcoal.net';
+  const canonical = domain + blogPath + st.slug + '/';
+  const catLabel = (CATEGORY_LABELS[st.category] && CATEGORY_LABELS[st.category][lang]) || st.category;
+
+  let hreflangTags = '';
+  let langSwitch = '';
+  if(st.bilingual){
+    const ukUrl = domain + '/blog/' + st.slug + '/';
+    const ruUrl = domain + '/ru/blog/' + st.slug + '/';
+    hreflangTags = `
+<link rel="alternate" hreflang="uk" href="${ukUrl}">
+<link rel="alternate" hreflang="ru" href="${ruUrl}">
+<link rel="alternate" hreflang="x-default" href="${ukUrl}">`;
+    langSwitch = `
+    <div class="lang-switch"><a href="${isRu ? '/blog/'+st.slug+'/' : '#'}" class="${isRu?'':'active'}">UA</a><span>|</span><a href="${isRu ? '#' : '/ru/blog/'+st.slug+'/'}" class="${isRu?'active':''}">RU</a></div>`;
+  }
+
+  const bodyHtml = mdToHtml(st.body, imgResolver);
+  const faqHtml = st.faqs.map(f=>`      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)"><span>${escapeHtml(f.q)}</span><span class="faq-arrow">+</span></div>
+        <div class="faq-a">${f.a}</div>
+      </div>`).join('\n');
+
+  const faqSchemaBlock = st.faqs.length ? `
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+${faqSchema(st.faqs)}
+  ]
+}
+<\/script>` : '';
+
+  const homeLabel = isRu ? 'Главная' : 'Головна';
+  const blogLabel = 'Блог';
+  const navBack = isRu ? '← На главную' : '← Блог';
+  const navCta = isRu ? 'Заказать' : 'Замовити';
+  const readLabel = isRu ? 'мин. чтения' : 'хв читання';
+  const faqTitle = isRu ? 'Частые вопросы' : 'Часті питання';
+  const ctaTitle = isRu ? 'Готовы оформить заявку?' : 'Готові оформити заявку?';
+  const ctaSub = isRu ? 'Оставьте заявку на сайте - менеджер свяжется в течение 1 рабочего дня.' : "Залиште заявку на сайті - менеджер зв'яжеться протягом 1 робочого дня.";
+  const ctaBtn = isRu ? 'Оставить заявку' : 'Залишити заявку';
+  const backLabel = isRu ? 'Все статьи блога' : 'Всі статті блогу';
+  const footerCopy = isRu ? '© '+new Date().getFullYear()+' ООО «Укрвуглепоставка» · ЕГРПОУ 40283877 · Все права защищены' : '© '+new Date().getFullYear()+' ТОВ «Укрвуглепоставка» · ЄДРПОУ 40283877 · Усі права захищено';
+  const dDisplay = dateDisplay(st.dateISO, lang);
+
+  return `<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=AW-18405978354"><\/script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'AW-18405978354');
+<\/script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="manifest" href="/site.webmanifest">
+
+<title>${escapeHtml(st.title || st.h1)}</title>
+<meta name="description" content="${escapeHtml(st.description)}">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="${canonical}">${hreflangTags}
+<meta property="og:type" content="article">
+<meta property="og:title" content="${escapeHtml(st.h1)}">
+<meta property="og:description" content="${escapeHtml(st.description)}">
+<meta property="og:image" content="${domain}/Ukr_coal.png">
+<meta property="og:url" content="${canonical}">
+<meta property="og:locale" content="${isRu?'ru_RU':'uk_UA'}">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "${jsonEsc(st.h1)}",
+  "description": "${jsonEsc(st.description)}",
+  "image": "${domain}/Ukr_coal.png",
+  "datePublished": "${st.dateISO}",
+  "dateModified": "${st.dateISO}",
+  "author": {"@type":"Organization","name":"Укрвуглепоставка"},
+  "publisher": {"@id":"${domain}/#organization"},
+  "mainEntityOfPage": {"@type":"WebPage","@id":"${canonical}"}
+}
+<\/script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type":"ListItem","position":1,"name":"${homeLabel}","item":"${domain+home}"},
+    {"@type":"ListItem","position":2,"name":"${blogLabel}","item":"${domain+blogPath}"},
+    {"@type":"ListItem","position":3,"name":"${jsonEsc(st.h1)}","item":"${canonical}"}
+  ]
+}
+<\/script>${faqSchemaBlock}
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap">
+
+<style>${ARTICLE_CSS}</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-wrap">
+    <a href="${home}" class="nav-logo"><b>УКР</b>ВУГЛЕПОСТАВКА</a>
+    <a href="../" class="nav-back">${navBack}</a>
+    <a href="${home}#contact" class="nav-cta">${navCta}</a>${langSwitch}
+  </div>
+</nav>
+
+<section class="page-hero">
+  <div class="container">
+    <div class="breadcrumb">
+      <a href="${home}">${homeLabel}</a><span>/</span>
+      <a href="../">${blogLabel}</a><span>/</span>
+      <span>${escapeHtml(catLabel)}</span>
+    </div>
+    <div class="article-badge">${escapeHtml(catLabel)}</div>
+    <h1 class="article-title">${escapeHtml(st.h1)}</h1>
+    <p class="article-lead">${escapeHtml(st.lead)}</p>
+    <div class="article-meta">
+      <span>📅 ${dDisplay}</span>
+      <span>✍️ ${escapeHtml(st.author)}</span>
+      <span>⏱ ${st.readTime} ${readLabel}</span>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="article-body">
+${bodyHtml}
+    </div>
+${st.calloutText ? `
+    <div class="callout">
+      <div class="callout-text">${st.calloutText.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')}</div>
+      <a href="${st.calloutLink}" class="callout-btn">${escapeHtml(st.calloutBtn)}</a>
+    </div>` : ''}
+  </div>
+</section>
+${st.faqs.length ? `
+<section class="section faq-section">
+  <div class="container">
+    <h2 class="s-title" style="font-family:'Syne',sans-serif;font-size:1.5rem;color:var(--white);margin-bottom:.5rem">${faqTitle}</h2>
+    <div class="faq-list">
+${faqHtml}
+    </div>
+  </div>
+</section>` : ''}
+
+<section class="cta-final">
+  <div class="container">
+    <h2>${ctaTitle}</h2>
+    <p>${ctaSub}</p>
+    <a href="${home}#contact" class="cta-btn-lg">${ctaBtn} →</a>
+    <div><a href="../" class="back-to-blog">← ${backLabel}</a></div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-copy">${footerCopy}</div>
+    <div class="footer-flag"><span class="flag-b"></span><span class="flag-y"></span></div>
+  </div>
+</footer>
+
+<script>
+function toggleFaq(el){
+  const item=el.parentElement;
+  const answer=item.querySelector('.faq-a');
+  const isOpen=item.classList.contains('open');
+  document.querySelectorAll('.faq-item').forEach(i=>{i.classList.remove('open');i.querySelector('.faq-a').style.display='none';});
+  if(!isOpen){item.classList.add('open');answer.style.display='block';}
+}
+<\/script>
+</body>
+</html>`;
+}
+
+// ===================== UI WIRING =====================
+const $ = id => document.getElementById(id);
+
+function readFormIntoState(){
+  state.category = $('fCategory').value;
+  state.h1 = $('fH1').value;
+  state.slug = slugify($('fSlug').value || $('fH1').value);
+  state.bilingual = $('fBilingual').checked;
+  state.title = $('fTitle').value;
+  state.description = $('fDescription').value;
+  state.lead = $('fLead').value;
+  state.dateISO = $('fDate').value || state.dateISO;
+  state.readTime = parseInt($('fReadTime').value)||5;
+  state.author = $('fAuthor').value;
+  state.body = $('bodyMd').value;
+  state.calloutText = $('fCalloutText').value;
+  state.calloutLink = $('fCalloutLink').value;
+  state.calloutBtn = $('fCalloutBtn').value;
+  $('slugPreview').textContent = state.slug || '...';
+}
+
+function writeStateIntoForm(){
+  $('fCategory').value = state.category;
+  $('fH1').value = state.h1;
+  $('fSlug').value = state.slug;
+  $('fBilingual').checked = !!state.bilingual;
+  $('fTitle').value = state.title;
+  $('fDescription').value = state.description;
+  $('fLead').value = state.lead;
+  $('fDate').value = state.dateISO;
+  $('fReadTime').value = state.readTime;
+  $('fAuthor').value = state.author;
+  $('bodyMd').value = state.body;
+  $('fCalloutText').value = state.calloutText;
+  $('fCalloutLink').value = state.calloutLink;
+  $('fCalloutBtn').value = state.calloutBtn;
+  $('slugPreview').textContent = state.slug || '...';
+  renderFaqList();
+  updateLangSeg();
+  renderPreview();
+}
+
+function renderFaqList(){
+  const wrap = $('faqList');
+  wrap.innerHTML = '';
+  state.faqs.forEach((f, idx)=>{
+    const row = document.createElement('div');
+    row.className = 'faq-row';
+    row.innerHTML = `
+      <div class="faq-row-top"><span>Питання ${idx+1}</span><button class="faq-del" data-idx="${idx}">Видалити</button></div>
+      <input type="text" class="faq-q" data-idx="${idx}" placeholder="Текст питання" value="${(f.q||'').replace(/"/g,'&quot;')}">
+      <textarea class="faq-a" data-idx="${idx}" placeholder="Відповідь (можна **жирний**)">${f.a||''}</textarea>
+    `;
+    wrap.appendChild(row);
+  });
+  wrap.querySelectorAll('.faq-del').forEach(b=>b.addEventListener('click', e=>{
+    state.faqs.splice(parseInt(e.target.dataset.idx),1);
+    renderFaqList(); renderPreview();
+  }));
+  wrap.querySelectorAll('.faq-q').forEach(inp=>inp.addEventListener('input', e=>{
+    state.faqs[parseInt(e.target.dataset.idx)].q = e.target.value; renderPreview();
+  }));
+  wrap.querySelectorAll('.faq-a').forEach(inp=>inp.addEventListener('input', e=>{
+    const val = e.target.value.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+    state.faqs[parseInt(e.target.dataset.idx)].a = val; renderPreview();
+  }));
+}
+
+$('addFaqBtn').addEventListener('click', ()=>{
+  state.faqs.push({q:'',a:''});
+  renderFaqList();
+});
+
+// live update on any input
+document.querySelectorAll('.editor-pane input, .editor-pane textarea, .editor-pane select').forEach(el=>{
+  el.addEventListener('input', debounce(()=>{ readFormIntoState(); renderPreview(); }, 300));
+});
+function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+
+// ===== toolbar insert =====
+function insertAtCursor(ta, before, after, placeholder){
+  const start = ta.selectionStart, end = ta.selectionEnd;
+  const val = ta.value;
+  const selected = val.slice(start,end) || placeholder || '';
+  ta.value = val.slice(0,start) + before + selected + after + val.slice(end);
+  const pos = start + before.length + selected.length + after.length;
+  ta.focus();
+  ta.setSelectionRange(pos,pos);
+  readFormIntoState(); renderPreview();
+}
+document.querySelectorAll('.tbtn[data-ins]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const ta = $('bodyMd');
+    const type = btn.dataset.ins;
+    const nl = ta.selectionStart>0 && ta.value[ta.selectionStart-1] !== '\n' ? '\n' : '';
+    if(type==='h2') insertAtCursor(ta, nl+'## ', '', 'Заголовок');
+    else if(type==='h3') insertAtCursor(ta, nl+'### ', '', 'Підзаголовок');
+    else if(type==='bold') insertAtCursor(ta, '**', '**', 'текст');
+    else if(type==='link') insertAtCursor(ta, '[', '](https://)', 'текст лінка');
+    else if(type==='ul') insertAtCursor(ta, nl+'- ', '\n- \n- ', 'пункт');
+    else if(type==='ol') insertAtCursor(ta, nl+'1. ', '\n2. \n3. ', 'пункт');
+    else if(type==='note') insertAtCursor(ta, nl+'> ', '', 'Текст примітки');
+    else if(type==='formula') insertAtCursor(ta, nl+'%% ', ' | пояснення', 'Формула тут');
+    else if(type==='table') insertAtCursor(ta, nl+'| Колонка 1 | Колонка 2 |\n|---|---|\n| ', ' | значення |', 'значення');
+  });
+});
+
+// ===== image insert =====
+$('imgBtn').addEventListener('click', ()=>{
+  $('imgInput').click();
+});
+$('imgInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  $('imgProgress').style.display = 'block';
+  $('imgProgress').textContent = 'Стискаємо зображення…';
+  try{
+    const blob = await compressImage(file, 1100, 0.78);
+    const dataUrl = await blobToDataUrl(blob);
+    const id = 'im' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+    state.images[id] = dataUrl;
+    const alt = prompt('Опис зображення (alt-текст, необовʼязково):', '') || '';
+    const ta = $('bodyMd');
+    const nl = ta.selectionStart>0 && ta.value[ta.selectionStart-1] !== '\n' ? '\n' : '';
+    insertAtCursor(ta, nl+'![' + alt + '](img:' + id + ')\n', '', '');
+    $('imgProgress').style.display = 'none';
+  }catch(err){
+    $('imgProgress').textContent = 'Помилка обробки зображення';
+    setTimeout(()=>{ $('imgProgress').style.display='none'; }, 3000);
+  }
+  e.target.value = '';
+});
+function blobToDataUrl(blob){
+  return new Promise((resolve,reject)=>{
+    const r = new FileReader();
+    r.onload = ()=>resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
+}
+function compressImage(file, maxW, quality){
+  return new Promise((resolve,reject)=>{
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = ev => { img.src = ev.target.result; };
+    reader.onerror = reject;
+    img.onload = ()=>{
+      let w = img.width, h = img.height;
+      if(w > maxW){ h = Math.round(h * maxW / w); w = maxW; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      canvas.toBlob(blob=> blob ? resolve(blob) : reject(new Error('compress failed')), 'image/jpeg', quality);
+    };
+    img.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// ===== preview =====
+function renderPreview(){
+  const html = buildDocument(state, id => state.images[id] || '');
+  $('previewFrame').srcdoc = html;
+  const isRu = state.lang==='ru';
+  $('previewUrl').textContent = 'ukrcoal.net' + (isRu?'/ru':'') + '/blog/' + (state.slug||'…') + '/';
+}
+
+// ===== lang toggle =====
+function updateLangSeg(){
+  document.querySelectorAll('#langSeg button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.lang===state.lang);
+  });
+}
+document.querySelectorAll('#langSeg button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    state.lang = btn.dataset.lang;
+    updateLangSeg();
+    renderPreview();
+  });
+});
+
+// ===== save / load drafts =====
+function setStatus(text, cls){
+  const el = $('statusText');
+  el.textContent = text;
+  el.className = 'tb-status' + (cls?(' '+cls):'');
+}
+
+$('saveBtn').addEventListener('click', ()=>{
+  readFormIntoState();
+  if(!state.slug || !state.h1){ setStatus('Вкажіть заголовок і слаг', 'err'); return; }
+  setStatus('Зберігаємо…');
+  try{
+    const id = state.lang + '__' + state.slug;
+    const all = loadAllDrafts();
+    all[id] = {...state, updatedAt: new Date().toISOString()};
+    saveAllDrafts(all);
+    setStatus('Збережено ✓', 'ok');
+  }catch(err){
+    if(err && err.name === 'QuotaExceededError'){
+      setStatus('Забагато даних — забагато великих фото?', 'err');
+    }else{
+      setStatus('Помилка збереження', 'err');
+    }
+  }
+});
+
+$('newBtn').addEventListener('click', ()=>{
+  if(!confirm('Почати нову статтю? Незбережені зміни буде втрачено.')) return;
+  state = freshState(state.lang);
+  writeStateIntoForm();
+  setStatus('Нова стаття');
+});
+
+$('draftsBtn').addEventListener('click', openDraftsModal);
+$('closeDraftsBtn').addEventListener('click', ()=> $('draftsModal').classList.remove('open'));
+$('draftsModal').addEventListener('click', e=>{ if(e.target.id==='draftsModal') $('draftsModal').classList.remove('open'); });
+
+function openDraftsModal(){
+  $('draftsModal').classList.add('open');
+  const listEl = $('draftsListEl');
+  const all = loadAllDrafts();
+  const ids = Object.keys(all).sort((a,b)=> (all[b].updatedAt||'').localeCompare(all[a].updatedAt||''));
+  if(!ids.length){ listEl.innerHTML = '<div class="empty-note">Ще немає збережених статей.</div>'; return; }
+  listEl.innerHTML = '';
+  ids.forEach(id=>{
+    const d = all[id];
+    const row = document.createElement('div');
+    row.className = 'draft-item';
+    const langTag = d.lang==='ru' ? 'RU' : 'UA';
+    row.innerHTML = `
+      <div class="draft-item-info">
+        <div class="draft-item-title">[${langTag}] ${escapeHtml(d.h1||'(без заголовка)')}</div>
+        <div class="draft-item-meta">/blog/${escapeHtml(d.slug||'')}/ · ${escapeHtml(d.category||'')}</div>
+      </div>
+      <div class="draft-item-actions">
+        <button class="open-draft" data-id="${id}">Відкрити</button>
+        <button class="del" data-id="${id}">Видалити</button>
+      </div>`;
+    listEl.appendChild(row);
+  });
+  listEl.querySelectorAll('.open-draft').forEach(b=>b.addEventListener('click', e=>{
+    const id = e.target.dataset.id;
+    const all2 = loadAllDrafts();
+    if(all2[id]){
+      state = Object.assign(freshState('uk'), all2[id]);
+      if(!state.images) state.images = {};
+      writeStateIntoForm();
+      $('draftsModal').classList.remove('open');
+      setStatus('Завантажено: '+state.h1);
+    }
+  }));
+  listEl.querySelectorAll('.del').forEach(b=>b.addEventListener('click', e=>{
+    if(!confirm('Видалити цю статтю зі списку чернеток?')) return;
+    const all2 = loadAllDrafts();
+    delete all2[e.target.dataset.id];
+    saveAllDrafts(all2);
+    openDraftsModal();
+  }));
+}
+
+// ===== export =====
+$('exportBtn').addEventListener('click', ()=>{
+  readFormIntoState();
+  if(!state.slug || !state.h1){ setStatus('Вкажіть заголовок і слаг', 'err'); return; }
+  setStatus('Готуємо файл…');
+  try{
+    const html = buildDocument(state, id => state.images[id] || '');
+    const blob = new Blob([html], {type:'text/html'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = state.slug + '.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+    setStatus('Завантажено — покладіть у /blog/'+state.slug+'/index.html', 'ok');
+  }catch(err){
+    setStatus('Помилка при формуванні файлу', 'err');
+  }
+});
+
+// ===== boot =====
+(async function boot(){
+  await initCaps();
+  $('fDate').value = state.dateISO;
+  writeStateIntoForm();
+  setStatus('Готово до роботи');
+})();
+
+})();
+</script>
+</body>
+</html>
